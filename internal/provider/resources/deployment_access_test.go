@@ -9,7 +9,8 @@ import (
 	"github.com/prefecthq/terraform-provider-prefect/internal/testutils"
 )
 
-func fixtureAccDeploymentAccessCreate(name string) string {
+// TODO: Need to use prefect_account_members datasource and use the first email
+func fixtureAccDeploymentAccess_email(name string) string {
 	return fmt.Sprintf(`
 data "prefect_account_member" "member" {
 	email = "richard@skyscrapr.io"
@@ -147,7 +148,7 @@ func TestAccResource_deployment_access(t *testing.T) {
 		PreCheck:                 func() { testutils.AccTestPreCheck(t) },
 		Steps: []resource.TestStep{
 			{
-				Config: fixtureAccDeploymentAccessCreate(randomName),
+				Config: fixtureAccDeploymentAccess_email(randomName),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet(accessResourceName, "id"),
 					// resource.TestCheckResourceAttrPair(accessResourceName, "workspace_id", workspaceDatsourceName, "id"),
