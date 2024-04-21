@@ -31,16 +31,16 @@ resource "prefect_deployment" "deployment" {
 	entrypoint = "hello_world.py:hello_world"
 	tags = ["test"]
 
-	// "schedules": [
-	// 	{
-	// 		"active": true,
-	// 		"schedule": {
-	// 			"interval": 0,
-	// 			"anchor_date": "2019-08-24T14:15:22Z",
-	// 			"timezone": "America/New_York"
-	// 		}
-	// 	}
-	// ],
+	schedules = [
+		{
+			active = true
+			schedule = {
+				interval 	= 0
+				anchor_date = "2019-08-24T14:15:22Z"
+				timezone 	= "America/New_York"
+			}
+		}
+	]
 	// parameters: {
 	// 	'goodbye': True
 	// },

@@ -12,8 +12,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
@@ -55,9 +57,7 @@ type DeploymentResourceModel struct {
 	Version                  types.String          `tfsdk:"version"`
 	Entrypoint               types.String          `tfsdk:"entrypoint"`
 	Tags                     types.List            `tfsdk:"tags"`
-	// schedules
-	// Array of objects (Schedules)
-	// A list of schedules for the deployment.
+	Schedules                []Schedule            `tfsdk:"schedules"`
 	// parameter_openapi_schema
 	// object (Parameter Openapi Schema)
 	// The parameter schema of the flow, including defaults.
@@ -73,6 +73,17 @@ type DeploymentResourceModel struct {
 	// infra_overrides
 	// object (Infra Overrides)
 	// Overrides to apply to the base infrastructure block at runtime.
+}
+
+type Schedule struct {
+	Active   bool           `tfsdk:"active"`
+	Schedule ScheduleConfig `tfsdk:"schedule"`
+}
+
+type ScheduleConfig struct {
+	Interval   int    `tfsdk:"interval"`
+	AnchorDate string `tfsdk:"anchor_date"`
+	Timezone   string `tfsdk:"timezone"`
 }
 
 // NewDeploymentResource returns a new DeploymentResource.
@@ -168,9 +179,44 @@ func (r *DeploymentResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
 			},
-			// schedules
-			// Array of objects (Schedules)
-			// A list of schedules for the deployment.
+			"schedules": schema.ListNestedAttribute{
+				Required:    true,
+				Description: "List of schedules for the deployment.",
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"active": schema.BoolAttribute{
+							Description: "Whether or not the schedule is active.",
+							Optional:    true,
+							Computed:    true,
+							Default:     booldefault.StaticBool(true),
+						},
+						"schedule": schema.SingleNestedAttribute{
+							Description: "The schedule configuration for the deployment.",
+							Required:    true,
+							Attributes: map[string]schema.Attribute{
+								"interval": schema.Int64Attribute{
+									Description: "The interval in seconds for the schedule.",
+									Optional:    true,
+									Computed:    true,
+									Default:     int64default.StaticInt64(0),
+								},
+								"anchor_date": schema.StringAttribute{
+									Description: "The anchor date for the schedule.",
+									Optional:    true,
+									Computed:    true,
+									Default:     stringdefault.StaticString(""),
+								},
+								"timezone": schema.StringAttribute{
+									Description: "The timezone for the schedule.",
+									Optional:    true,
+									Computed:    true,
+									Default:     stringdefault.StaticString("UTC"),
+								},
+							},
+						},
+					},
+				},
+			},
 			"enforce_parameter_schema": schema.BoolAttribute{
 				Description: "Whether or not the deployment should enforce the parameter schema.",
 				Optional:    true,
@@ -291,6 +337,7 @@ func (r *DeploymentResource) Create(ctx context.Context, req resource.CreateRequ
 	}
 
 	var tags []string
+	var schedules []api.Schedule
 	resp.Diagnostics.Append(model.Tags.ElementsAs(ctx, &tags, false)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -301,6 +348,7 @@ func (r *DeploymentResource) Create(ctx context.Context, req resource.CreateRequ
 		FlowID:                 model.FlowID.ValueUUID(),
 		IsScheduleActive:       model.IsScheduleActive.ValueBool(),
 		Paused:                 model.Paused.ValueBool(),
+		Schedules:              schedules,
 		EnforceParameterSchema: model.EnforceParameterSchema.ValueBool(),
 		Path:                   model.Path.ValueString(),
 		Entrypoint:             model.Entrypoint.ValueString(),
