@@ -20,17 +20,17 @@ type DeploymentsClient interface {
 // Deployment is a representation of a deployment.
 type Deployment struct {
 	BaseModel
-	AccountID              uuid.UUID  `json:"account_id"`
-	WorkspaceID            uuid.UUID  `json:"workspace_id"`
-	Name                   string     `json:"name"`
-	FlowID                 uuid.UUID  `json:"flow_id"`
-	IsScheduleActive       bool       `json:"is_schedule_active"`
-	Paused                 bool       `json:"paused"`
-	Schedules              []Schedule `json:"schedules"`
-	EnforceParameterSchema bool       `json:"enforce_parameter_schema"`
-	Path                   string     `json:"path"`
-	Entrypoint             string     `json:"entrypoint"`
-	Tags                   []string   `json:"tags"`
+	AccountID              uuid.UUID   `json:"account_id"`
+	WorkspaceID            uuid.UUID   `json:"workspace_id"`
+	Name                   string      `json:"name"`
+	FlowID                 uuid.UUID   `json:"flow_id"`
+	IsScheduleActive       bool        `json:"is_schedule_active"`
+	Paused                 bool        `json:"paused"`
+	Schedules              []Schedules `json:"schedules"`
+	EnforceParameterSchema bool        `json:"enforce_parameter_schema"`
+	Path                   string      `json:"path"`
+	Entrypoint             string      `json:"entrypoint"`
+	Tags                   []string    `json:"tags"`
 
 	ManifestPath             string `json:"manifest_path,omitempty"`
 	StorageDocumentID        string `json:"storage_document_id,omitempty"`
@@ -44,28 +44,39 @@ type Deployment struct {
 
 // DeploymentCreate is a subset of Deployment used when creating deployments.
 type DeploymentCreate struct {
-	Name                   string     `json:"name"`
-	FlowID                 uuid.UUID  `json:"flow_id"`
-	IsScheduleActive       bool       `json:"is_schedule_active"`
-	Paused                 bool       `json:"paused"`
-	Schedules              []Schedule `json:"schedules"`
-	EnforceParameterSchema bool       `json:"enforce_parameter_schema"`
-	Path                   string     `json:"path"`
-	Entrypoint             string     `json:"entrypoint"`
-	Description            string     `json:"description"`
-	Tags                   []string   `json:"tags"`
+	Name                   string      `json:"name"`
+	FlowID                 uuid.UUID   `json:"flow_id"`
+	IsScheduleActive       bool        `json:"is_schedule_active"`
+	Paused                 bool        `json:"paused"`
+	Schedules              []Schedules `json:"schedules"`
+	EnforceParameterSchema bool        `json:"enforce_parameter_schema"`
+	Path                   string      `json:"path"`
+	Entrypoint             string      `json:"entrypoint"`
+	Description            string      `json:"description"`
+	Tags                   []string    `json:"tags"`
 }
 
 // Schedule is a representation of a Prefect schedule.
-type Schedule struct {
-	Active   bool           `json:"active"`
-	Schedule ScheduleConfig `json:"schedule"`
+type Schedules struct {
+	Active   bool             `json:"active"`
+	Schedule ScheduleInterval `json:"schedule"`
 }
 
-type ScheduleConfig struct {
-	Interval   int    `json:"interval"`
-	AnchorDate string `json:"anchor_date"`
-	Timezone   string `json:"timezone"`
+type ScheduleInterval struct {
+	Interval   float64 `json:"interval"`
+	AnchorDate string  `json:"anchor_date"`
+	Timezone   string  `json:"timezone"`
+}
+
+type ScheduleCron struct {
+	Cron     string `json:"cron"`
+	Timezone string `json:"timezone"`
+	Day_Or   string `json:"day_or"`
+}
+
+type ScheduleRRule struct {
+	RRule    string `json:"rrule"`
+	Timezone string `json:"timezone"`
 }
 
 // DeploymentUpdate is a subset of Deployment used when updating deployments.

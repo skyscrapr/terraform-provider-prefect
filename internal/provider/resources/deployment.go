@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/float64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
@@ -57,7 +57,7 @@ type DeploymentResourceModel struct {
 	Version                  types.String          `tfsdk:"version"`
 	Entrypoint               types.String          `tfsdk:"entrypoint"`
 	Tags                     types.List            `tfsdk:"tags"`
-	Schedules                []Schedule            `tfsdk:"schedules"`
+	Schedules                types.List            `tfsdk:"schedules"`
 	// parameter_openapi_schema
 	// object (Parameter Openapi Schema)
 	// The parameter schema of the flow, including defaults.
@@ -75,15 +75,26 @@ type DeploymentResourceModel struct {
 	// Overrides to apply to the base infrastructure block at runtime.
 }
 
-type Schedule struct {
-	Active   bool           `tfsdk:"active"`
-	Schedule ScheduleConfig `tfsdk:"schedule"`
+type Schedules struct {
+	Active   types.Bool   `tfsdk:"active"`
+	Schedule types.Object `tfsdk:"schedule"`
 }
 
-type ScheduleConfig struct {
-	Interval   int    `tfsdk:"interval"`
-	AnchorDate string `tfsdk:"anchor_date"`
-	Timezone   string `tfsdk:"timezone"`
+type ScheduleInterval struct {
+	Interval   types.Float64 `tfsdk:"interval"`
+	AnchorDate types.String  `tfsdk:"anchor_date"`
+	Timezone   types.String  `tfsdk:"timezone"`
+}
+
+type ScheduleCron struct {
+	Cron     types.String `tfsdk:"cron"`
+	Timezone types.String `tfsdk:"timezone"`
+	Day_Or   types.String `tfsdk:"day_or"`
+}
+
+type ScheduleRRule struct {
+	RRule    types.String `tfsdk:"rrule"`
+	Timezone types.String `tfsdk:"timezone"`
 }
 
 // NewDeploymentResource returns a new DeploymentResource.
@@ -194,11 +205,11 @@ func (r *DeploymentResource) Schema(_ context.Context, _ resource.SchemaRequest,
 							Description: "The schedule configuration for the deployment.",
 							Required:    true,
 							Attributes: map[string]schema.Attribute{
-								"interval": schema.Int64Attribute{
+								"interval": schema.Float64Attribute{
 									Description: "The interval in seconds for the schedule.",
 									Optional:    true,
 									Computed:    true,
-									Default:     int64default.StaticInt64(0),
+									Default:     float64default.StaticFloat64(0), //int64default.StaticInt64(0),
 								},
 								"anchor_date": schema.StringAttribute{
 									Description: "The anchor date for the schedule.",
@@ -337,10 +348,82 @@ func (r *DeploymentResource) Create(ctx context.Context, req resource.CreateRequ
 	}
 
 	var tags []string
-	var schedules []api.Schedule
 	resp.Diagnostics.Append(model.Tags.ElementsAs(ctx, &tags, false)...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	var schedules []api.Schedules
+	for _, scheduleValue := range model.Schedules.Elements() {
+		schedule, ok := scheduleValue.(types.Object)
+		if !ok {
+			resp.Diagnostics.AddError(
+				"Invalid schedule type",
+				"Expected schedule to be of type types.Object",
+			)
+			return
+		}
+
+		activeAttrValue := schedule.Attributes()["active"]
+		active, ok := activeAttrValue.(types.Bool)
+		if !ok {
+			resp.Diagnostics.AddError(
+				"Invalid schedule active type",
+				"Expected schedule active to be of type types.Bool",
+			)
+			return
+		}
+
+		scheduleConfigAttrValue := schedule.Attributes()["schedule"]
+		scheduleConfig, ok := scheduleConfigAttrValue.(types.Object)
+		if !ok {
+			resp.Diagnostics.AddError(
+				"Invalid schedule config type",
+				"Expected schedule config to be of type types.Object",
+			)
+			return
+		}
+
+		intervalAttrValue := scheduleConfig.Attributes()["interval"]
+		interval, ok := intervalAttrValue.(types.Float64)
+		if !ok {
+			resp.Diagnostics.AddError(
+				"Invalid interval type",
+				"Expected interval to be of type types.Float64",
+			)
+			return
+		}
+
+		anchorDateAttrValue := scheduleConfig.Attributes()["anchor_date"]
+		anchorDate, ok := anchorDateAttrValue.(types.String)
+		if !ok {
+			resp.Diagnostics.AddError(
+				"Invalid anchor date type",
+				"Expected anchor date to be of type types.String",
+			)
+			return
+		}
+
+		timezoneAttrValue := scheduleConfig.Attributes()["timezone"]
+		timezone, ok := timezoneAttrValue.(types.String)
+		if !ok {
+			resp.Diagnostics.AddError(
+				"Invalid timezone type",
+				"Expected timezone to be of type types.String",
+			)
+			return
+		}
+
+		apiSchedules := api.Schedules{
+			Active: active.ValueBool(),
+			Schedule: api.ScheduleInterval{
+				Interval:   interval.ValueFloat64(),
+				AnchorDate: anchorDate.ValueString(),
+				Timezone:   timezone.ValueString(),
+			},
+		}
+
+		schedules = append(schedules, apiSchedules)
 	}
 
 	deployment, err := client.Create(ctx, api.DeploymentCreate{

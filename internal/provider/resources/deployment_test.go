@@ -35,7 +35,7 @@ resource "prefect_deployment" "deployment" {
 		{
 			active = true
 			schedule = {
-				interval 	= 0
+				interval 	= 120 
 				anchor_date = "2019-08-24T14:15:22Z"
 				timezone 	= "America/New_York"
 			}
