@@ -65,7 +65,7 @@ func TestAccResource_deployment_access_members(t *testing.T) {
 					resource.TestCheckResourceAttrPair(resourceName, "id", deploymentResourceName, "id"),
 					resource.TestCheckResourceAttrPair(resourceName, "workspace_id", workspaceResourceName, "id"),
 					resource.TestCheckResourceAttrPair(resourceName, "deployment_id", deploymentResourceName, "id"),
-					resource.TestCheckResourceAttrPair(resourceName, "manage_actor_ids.0", accountMembersDatasourcename, "members.0.actor_id"),
+					resource.TestCheckResourceAttrPair(resourceName, "access_control.manage_actor_ids.0", accountMembersDatasourcename, "members.0.actor_id"),
 					resource.TestCheckResourceAttrPair(resourceName, "result.manage_actors.0.id", accountMembersDatasourcename, "members.0.actor_id"),
 				),
 			},
